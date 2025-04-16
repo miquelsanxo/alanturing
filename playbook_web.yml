@@ -1,0 +1,80 @@
+---
+- name: Desplegar web d'alumnes amb login simple
+  hosts: web
+  become: yes
+
+  vars:
+    db_name: AlumnesWeb
+    db_user: root
+    db_password: root
+
+  tasks:
+    - name: Instal·lar Apache, MySQL i PHP
+      apt:
+        name:
+          - apache2
+          - mysql-server
+          - php
+          - php-mysql
+          - libapache2-mod-php
+        state: present
+        update_cache: yes
+
+    - name: Assegurar que Apache funciona
+      service:
+        name: apache2
+        state: started
+        enabled: yes
+
+    - name: Assegurar que MySQL funciona
+      service:
+        name: mysql
+        state: started
+        enabled: yes
+
+    - name: Crear base de dades
+      community.mysql.mysql_db:
+        name: "{{ db_name }}"
+        state: present
+        login_user: "{{ db_user }}"
+        login_password: "{{ db_password }}"
+
+    - name: Crear taula Alumnes
+      community.mysql.mysql_query:
+        login_user: "{{ db_user }}"
+        login_password: "{{ db_password }}"
+        query: |
+          USE {{ db_name }};
+          CREATE TABLE IF NOT EXISTS Alumnes (
+            Usuari VARCHAR(50) NOT NULL,
+            Password VARCHAR(50) NOT NULL
+          );
+
+    - name: Copiar fitxers web a /var/www/html
+      copy:
+        src: "{{ item }}"
+        dest: "/var/www/html/"
+        owner: www-data
+        group: www-data
+        mode: '0644'
+      loop:
+        - index.html
+        - login.php
+        - alumnes.php
+        - style.css
+
+    - name: Crear carpeta db per connexió PHP
+      file:
+        path: /var/www/html/db
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    - name: Copiar connexió PHP
+      copy:
+        src: db/connexio.php
+        dest: /var/www/html/db/connexio.php
+        owner: www-data
+        group: www-data
+        mode: '0644'
